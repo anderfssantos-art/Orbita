@@ -1,6 +1,7 @@
 "use server";
 
 import { createClient } from "@/lib/supabase/server";
+import { usuarioAtual } from "@/lib/supabase/usuario-atual";
 import { buscarDocumentosFiscais } from "@/lib/nfe-distribuicao";
 
 export async function buscarXmlDaEmpresa(formData: FormData) {
@@ -13,6 +14,9 @@ export async function buscarXmlDaEmpresa(formData: FormData) {
   }
 
   const supabase = await createClient();
+
+  const usuario = await usuarioAtual(supabase);
+  if (!usuario) return { erro: "Usuário sem escritório vinculado." };
 
   const { data: empresa } = await supabase
     .from("empresas")
@@ -40,10 +44,36 @@ export async function buscarXmlDaEmpresa(formData: FormData) {
     cUF
   );
 
+  if (resultado.sucesso) {
+    if (resultado.documentos && resultado.documentos.length > 0) {
+      await supabase
+        .from("documentos_fiscais")
+        .upsert(
+          resultado.documentos.map((doc) => ({
+            escritorio_id: usuario.escritorio_id,
+            empresa_id: empresaId,
+            nsu: doc.nsu,
+            schema: doc.schema,
+            chave_acesso: doc.chaveAcesso,
+            xml: doc.xml,
+          })),
+          { onConflict: "empresa_id,nsu", ignoreDuplicates: true }
+        );
+    }
+
+    if (resultado.ultNsu) {
+      await supabase
+        .from("certificados_digitais")
+        .update({ ultimo_nsu: resultado.ultNsu })
+        .eq("id", certificadoId);
+    }
+  }
+
   return {
     sucesso: resultado.sucesso,
     erro: resultado.erro,
-    respostaBruta: resultado.respostaBruta.slice(0, 4000),
-    xmlEnviado: resultado.xmlEnviado,
+    cStat: resultado.cStat,
+    xMotivo: resultado.xMotivo,
+    quantidadeDocumentos: resultado.documentos?.length ?? 0,
   };
 }

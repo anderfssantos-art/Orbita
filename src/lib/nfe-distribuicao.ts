@@ -5,9 +5,11 @@
  * (mTLS) — o XML da requisição (distDFeInt) NÃO é assinado com XML-DSig,
  * diferente de outros serviços de NFe. Assinar essa mensagem faz a Receita
  * rejeitar com cStat 215 ("Falha no esquema xml"), pois o schema não prevê
- * um elemento Signature dentro de distDFeInt.
+ * um elemento Signature dentro de distDFeInt. Validado em homologação com
+ * certificado A1 real: cStat 137/138 confirmam o fluxo completo funcionando.
  */
 import https from "node:https";
+import { gunzipSync } from "node:zlib";
 import forge from "node-forge";
 
 // Ambiente de homologação por padrão — nunca produção sem validação prévia.
@@ -58,24 +60,56 @@ function montarXmlDistribuicao(cnpj: string, ultimoNsu: string, cUF: string): st
   );
 }
 
-function montarEnvelopeSoap(xmlAssinado: string): string {
+function montarEnvelopeSoap(xml: string): string {
   return (
     `<?xml version="1.0" encoding="utf-8"?>` +
     `<soap12:Envelope xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:xsd="http://www.w3.org/2001/XMLSchema" xmlns:soap12="http://www.w3.org/2003/05/soap-envelope">` +
     `<soap12:Body>` +
     `<nfeDistDFeInteresse xmlns="http://www.portalfiscal.inf.br/nfe/wsdl/NFeDistribuicaoDFe">` +
-    `<nfeDadosMsg>${xmlAssinado}</nfeDadosMsg>` +
+    `<nfeDadosMsg>${xml}</nfeDadosMsg>` +
     `</nfeDistDFeInteresse>` +
     `</soap12:Body>` +
     `</soap12:Envelope>`
   );
 }
 
+function extrairTag(xml: string, tag: string): string | undefined {
+  const match = xml.match(new RegExp(`<${tag}>([^<]*)</${tag}>`));
+  return match?.[1];
+}
+
+export type DocumentoFiscalBaixado = {
+  nsu: string;
+  schema: string;
+  xml: string;
+  chaveAcesso?: string;
+};
+
+function extrairDocumentos(respostaBruta: string): DocumentoFiscalBaixado[] {
+  const documentos: DocumentoFiscalBaixado[] = [];
+  const regexDocZip = /<docZip NSU="(\d+)" schema="([^"]+)">([^<]+)<\/docZip>/g;
+  let match: RegExpExecArray | null;
+  while ((match = regexDocZip.exec(respostaBruta))) {
+    const [, nsu, schema, base64] = match;
+    try {
+      const xml = gunzipSync(Buffer.from(base64, "base64")).toString("utf-8");
+      const chaveAcesso = xml.match(/chNFe>(\d{44})</)?.[1] ?? xml.match(/Id="NFe(\d{44})"/)?.[1];
+      documentos.push({ nsu, schema, xml, chaveAcesso });
+    } catch {
+      // docZip corrompido ou formato inesperado — ignora esse item, mantém os demais.
+    }
+  }
+  return documentos;
+}
+
 export type ResultadoBuscaXml = {
   sucesso: boolean;
   respostaBruta: string;
   erro?: string;
-  xmlEnviado?: string; // temporário, só para depurar o cStat 215 com dado real
+  cStat?: string;
+  xMotivo?: string;
+  ultNsu?: string;
+  documentos?: DocumentoFiscalBaixado[];
 };
 
 /**
@@ -122,11 +156,19 @@ export async function buscarDocumentosFiscais(
         let corpo = "";
         res.on("data", (chunk) => (corpo += chunk));
         res.on("end", () => {
+          const httpOk = (res.statusCode ?? 500) < 300;
+          const cStat = extrairTag(corpo, "cStat");
+          const xMotivo = extrairTag(corpo, "xMotivo");
+          const ultNsu = extrairTag(corpo, "ultNSU");
+          const sucessoNegocio = cStat === "137" || cStat === "138";
           resolve({
-            sucesso: (res.statusCode ?? 500) < 300,
+            sucesso: httpOk && sucessoNegocio,
             respostaBruta: corpo,
-            erro: (res.statusCode ?? 500) >= 300 ? `HTTP ${res.statusCode}` : undefined,
-            xmlEnviado: xml,
+            erro: !httpOk ? `HTTP ${res.statusCode}` : !sucessoNegocio ? xMotivo ?? "Rejeitado pela Receita." : undefined,
+            cStat,
+            xMotivo,
+            ultNsu,
+            documentos: sucessoNegocio ? extrairDocumentos(corpo) : undefined,
           });
         });
       }

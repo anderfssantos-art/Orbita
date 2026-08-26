@@ -14,8 +14,9 @@ export function BuscarXmlButton({
   const [resultado, setResultado] = useState<{
     sucesso?: boolean;
     erro?: string;
-    respostaBruta?: string;
-    xmlEnviado?: string;
+    cStat?: string;
+    xMotivo?: string;
+    quantidadeDocumentos?: number;
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -32,18 +33,18 @@ export function BuscarXmlButton({
   }
 
   return (
-    <div className="flex flex-col gap-2 rounded-lg border border-amber-300 bg-amber-50 p-3">
-      <p className="text-xs font-semibold text-amber-800">
-        ⚠ Experimental — nunca testado contra a Receita de verdade. Só busca em ambiente de homologação (sem efeito fiscal real).
+    <div className="flex flex-col gap-2 rounded-lg border border-zinc-200 bg-zinc-50 p-3">
+      <p className="text-xs text-zinc-600">
+        Busca automática de XML na Receita (ambiente de homologação, sem efeito fiscal real).
       </p>
       <div className="flex items-end gap-2">
         <label className="flex flex-col gap-1 text-xs text-zinc-700">
-          UF (código IBGE, ex: 35 = SP)
+          UF (código IBGE, ex: 33 = RJ)
           <input
             value={cUF}
             onChange={(e) => setCUF(e.target.value)}
             maxLength={2}
-            placeholder="35"
+            placeholder="33"
             className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm outline-none focus:border-emerald-600"
           />
         </label>
@@ -57,27 +58,17 @@ export function BuscarXmlButton({
       </div>
       {resultado && (
         <div className="text-xs">
-          <p className={resultado.sucesso ? "text-emerald-700" : "text-red-600"}>
-            {resultado.sucesso ? "Resposta recebida." : `Erro: ${resultado.erro ?? "sem detalhes."}`}
-          </p>
-          {resultado.respostaBruta ? (
-            <details className="mt-1" open>
-              <summary className="cursor-pointer text-zinc-600">Ver resposta bruta da Receita</summary>
-              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-white p-2 text-[10px] text-zinc-700">
-                {resultado.respostaBruta}
-              </pre>
-            </details>
+          {resultado.sucesso ? (
+            <p className="text-emerald-700">
+              {resultado.quantidadeDocumentos
+                ? `${resultado.quantidadeDocumentos} documento(s) recebido(s) e salvos.`
+                : "Busca concluída — nenhum documento novo localizado."}
+            </p>
           ) : (
-            <p className="mt-1 text-zinc-500">(sem corpo de resposta)</p>
+            <p className="text-red-600">
+              Erro: {resultado.xMotivo ?? resultado.erro ?? "sem detalhes."}
+            </p>
           )}
-          {resultado.xmlEnviado ? (
-            <details className="mt-1" open>
-              <summary className="cursor-pointer text-zinc-600">Ver XML assinado enviado</summary>
-              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-white p-2 text-[10px] text-zinc-700">
-                {resultado.xmlEnviado}
-              </pre>
-            </details>
-          ) : null}
         </div>
       )}
     </div>

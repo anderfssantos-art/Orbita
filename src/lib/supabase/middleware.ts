@@ -37,7 +37,10 @@ export async function updateSession(request: NextRequest) {
     pathname.startsWith("/cadastro") ||
     pathname.startsWith("/portal/cadastro");
 
-  if (!user && !isAuthRoute) {
+  const isRotaPublica =
+    isAuthRoute || pathname.startsWith("/termos") || pathname.startsWith("/privacidade");
+
+  if (!user && !isRotaPublica) {
     const url = request.nextUrl.clone();
     url.pathname = "/login";
     return NextResponse.redirect(url);

@@ -64,6 +64,16 @@ export default function LoginPage() {
           Criar conta
         </Link>
       </p>
+
+      <p className="text-xs text-zinc-400">
+        <Link href="/termos" className="hover:underline">
+          Termos de uso
+        </Link>{" "}
+        ·{" "}
+        <Link href="/privacidade" className="hover:underline">
+          Privacidade
+        </Link>
+      </p>
     </main>
   );
 }

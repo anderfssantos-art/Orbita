@@ -9,6 +9,12 @@ const setorLabel: Record<string, string> = {
   dp: "Departamento Pessoal",
 };
 
+const setorCor: Record<string, { barra: string; texto: string }> = {
+  fiscal: { barra: "bg-blue-600", texto: "text-blue-700" },
+  contabil: { barra: "bg-orange-500", texto: "text-orange-700" },
+  dp: { barra: "bg-violet-600", texto: "text-violet-700" },
+};
+
 const severidadeStyle: Record<string, string> = {
   alta: "bg-red-100 text-red-700",
   media: "bg-amber-100 text-amber-700",
@@ -112,7 +118,7 @@ export default async function DashboardPage() {
     <main className="mx-auto flex min-h-screen max-w-5xl flex-col gap-6 px-6 py-10">
       <div className="flex flex-wrap items-start justify-between gap-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-700 font-mono text-sm font-bold text-white">
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-gradient-to-br from-emerald-600 to-teal-700 font-mono text-sm font-bold text-white shadow-sm">
             Ω
           </div>
           <div>
@@ -147,28 +153,24 @@ export default async function DashboardPage() {
 
       {/* KPIs */}
       <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Competências fechadas</div>
-          <div className="mt-1 text-2xl font-semibold text-zinc-900">
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">Competências fechadas</div>
+          <div className="mt-1 text-2xl font-semibold text-emerald-900">
             {competenciasFechadas}
-            <span className="text-base font-normal text-zinc-400"> / {totalCompetencias}</span>
+            <span className="text-base font-normal text-emerald-600/60"> / {totalCompetencias}</span>
           </div>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Tarefas críticas pendentes</div>
-          <div className={"mt-1 text-2xl font-semibold " + (tarefasCriticasPendentes > 0 ? "text-amber-600" : "text-zinc-900")}>
-            {tarefasCriticasPendentes}
-          </div>
+        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-amber-700">Tarefas críticas pendentes</div>
+          <div className="mt-1 text-2xl font-semibold text-amber-900">{tarefasCriticasPendentes}</div>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Documentos recebidos</div>
-          <div className="mt-1 text-2xl font-semibold text-zinc-900">{pctDocumentosRecebidos != null ? `${pctDocumentosRecebidos}%` : "—"}</div>
+        <div className="rounded-xl border border-sky-200 bg-sky-50 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-sky-700">Documentos recebidos</div>
+          <div className="mt-1 text-2xl font-semibold text-sky-900">{pctDocumentosRecebidos != null ? `${pctDocumentosRecebidos}%` : "—"}</div>
         </div>
-        <div className="rounded-xl border border-zinc-200 bg-white p-4">
-          <div className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Alertas de auditoria</div>
-          <div className={"mt-1 text-2xl font-semibold " + ((alertasAbertos?.length ?? 0) > 0 ? "text-red-600" : "text-zinc-900")}>
-            {alertasAbertos?.length ?? 0}
-          </div>
+        <div className="rounded-xl border border-red-200 bg-red-50 p-4">
+          <div className="text-xs font-semibold uppercase tracking-wide text-red-700">Alertas de auditoria</div>
+          <div className="mt-1 text-2xl font-semibold text-red-900">{alertasAbertos?.length ?? 0}</div>
         </div>
       </div>
 
@@ -184,14 +186,11 @@ export default async function DashboardPage() {
               {porSetor.map((s) => (
                 <div key={s.setor}>
                   <div className="flex items-center justify-between text-sm">
-                    <span className="font-medium text-zinc-900">{setorLabel[s.setor]}</span>
+                    <span className={"font-medium " + setorCor[s.setor].texto}>{setorLabel[s.setor]}</span>
                     <span className="text-zinc-500">{s.pct != null ? `${s.pct}% concluído` : "sem tarefas"}</span>
                   </div>
                   <div className="mt-1.5 h-2 overflow-hidden rounded-full bg-zinc-100">
-                    <div
-                      className={"h-full rounded-full " + (s.criticasPendentes > 0 ? "bg-amber-500" : "bg-emerald-600")}
-                      style={{ width: `${s.pct ?? 0}%` }}
-                    />
+                    <div className={"h-full rounded-full " + setorCor[s.setor].barra} style={{ width: `${s.pct ?? 0}%` }} />
                   </div>
                   <p className="mt-1 text-xs text-zinc-500">
                     {s.total - s.concluidas} pendente(s) · {s.criticasPendentes} crítica(s) sem concluir
@@ -251,19 +250,19 @@ export default async function DashboardPage() {
             <ul className="flex flex-col gap-2 text-sm">
               <li className="flex items-center justify-between">
                 <span className="text-zinc-600">Honorário a revisar</span>
-                <span className="font-semibold text-zinc-900">{codigosAbertos.get("honorario_nao_definido") ?? 0}</span>
+                <span className="rounded-full bg-fuchsia-100 px-2 py-0.5 text-xs font-semibold text-fuchsia-700">{codigosAbertos.get("honorario_nao_definido") ?? 0}</span>
               </li>
               <li className="flex items-center justify-between">
                 <span className="text-zinc-600">Risco de atraso</span>
-                <span className="font-semibold text-zinc-900">{codigosAbertos.get("competencia_atrasada") ?? 0}</span>
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-semibold text-amber-700">{codigosAbertos.get("competencia_atrasada") ?? 0}</span>
               </li>
               <li className="flex items-center justify-between">
                 <span className="text-zinc-600">Certificado a vencer</span>
-                <span className="font-semibold text-zinc-900">{codigosAbertos.get("certificado_vencido_ou_vencendo") ?? 0}</span>
+                <span className="rounded-full bg-red-100 px-2 py-0.5 text-xs font-semibold text-red-700">{codigosAbertos.get("certificado_vencido_ou_vencendo") ?? 0}</span>
               </li>
               <li className="flex items-center justify-between">
                 <span className="text-zinc-600">Empresas no radar CBS/IBS</span>
-                <Link href="/reforma-tributaria" className="font-semibold text-emerald-700 hover:underline">{totalEmpresas ?? 0}</Link>
+                <Link href="/reforma-tributaria" className="rounded-full bg-sky-100 px-2 py-0.5 text-xs font-semibold text-sky-700 hover:underline">{totalEmpresas ?? 0}</Link>
               </li>
             </ul>
           </div>

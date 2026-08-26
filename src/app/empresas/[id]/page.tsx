@@ -16,6 +16,8 @@ import { DocumentoUpload } from "./documento-upload";
 import { GerarConviteButton } from "./gerar-convite-button";
 import { CertificadoUpload } from "./certificado-upload";
 import { BuscarXmlButton } from "./buscar-xml-button";
+import { UploadEmLote } from "./upload-em-lote";
+import { CaixaEntradaItem } from "./caixa-entrada-item";
 
 const setorLabel: Record<string, string> = {
   fiscal: "Fiscal",
@@ -45,6 +47,7 @@ export default async function EmpresaDetalhePage({
     { data: contratados },
     { data: competencias },
     { data: certificados },
+    { data: caixaEntrada },
   ] = await Promise.all([
     supabase
       .from("empresas")
@@ -67,6 +70,12 @@ export default async function EmpresaDetalhePage({
       .eq("empresa_id", id)
       .order("criado_em", { ascending: false })
       .limit(1),
+    supabase
+      .from("caixa_entrada_documentos")
+      .select("id, nome_arquivo, criado_em")
+      .eq("empresa_id", id)
+      .eq("status", "pendente")
+      .order("criado_em", { ascending: false }),
   ]);
 
   if (!empresa) notFound();
@@ -342,6 +351,31 @@ export default async function EmpresaDetalhePage({
           <p className="text-sm text-zinc-500">
             Nenhuma competência aberta este mês.
           </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4">
+        <div>
+          <h2 className="text-sm font-semibold text-zinc-900">Caixa de entrada de documentos</h2>
+          <p className="mt-0.5 text-sm text-zinc-600">
+            Envie vários arquivos de uma vez, mesmo sem uma pendência aberta esperando por eles. Depois é só vincular cada um ao documento certo.
+          </p>
+        </div>
+        <UploadEmLote empresaId={id} />
+        {caixaEntrada && caixaEntrada.length > 0 && (
+          <ul className="flex flex-col gap-1.5">
+            {caixaEntrada.map((item) => (
+              <CaixaEntradaItem
+                key={item.id}
+                itemId={item.id}
+                empresaId={id}
+                nomeArquivo={item.nome_arquivo}
+                documentosPendentes={(documentos ?? [])
+                  .filter((d) => d.status !== "recebido")
+                  .map((d) => ({ id: d.id, tipo: d.tipo }))}
+              />
+            ))}
+          </ul>
         )}
       </section>
 

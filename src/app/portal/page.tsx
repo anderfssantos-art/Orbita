@@ -1,6 +1,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { sair } from "@/app/actions/auth";
 import { redirect } from "next/navigation";
+import { UploadEmLotePortal } from "./upload-em-lote";
 
 export default async function PortalPage() {
   const supabase = await createClient();
@@ -116,6 +117,8 @@ export default async function PortalPage() {
       ) : (
         <p className="text-sm text-zinc-500">Nenhuma competência aberta no momento.</p>
       )}
+
+      <UploadEmLotePortal empresaId={acesso.empresa_id} />
     </main>
   );
 }

@@ -55,7 +55,7 @@ export async function abrirCompetencia(formData: FormData) {
   // Serviços contratados pela empresa definem as tarefas e documentos esperados.
   const { data: servicosContratados } = await supabase
     .from("empresa_servicos")
-    .select("servicos(id, nome, setor, critica, documentos_necessarios)")
+    .select("servicos(id, nome, setor, critica, exige_revisao_4_olhos, documentos_necessarios)")
     .eq("empresa_id", empresaId);
 
   const servicos = (servicosContratados ?? [])
@@ -65,6 +65,7 @@ export async function abrirCompetencia(formData: FormData) {
     nome: string;
     setor: string;
     critica: boolean;
+    exige_revisao_4_olhos: boolean;
     documentos_necessarios: string[];
   }[];
 
@@ -82,6 +83,7 @@ export async function abrirCompetencia(formData: FormData) {
     nome: servico.nome,
     setor: servico.setor,
     critica: servico.critica,
+    exige_revisao_4_olhos: servico.exige_revisao_4_olhos,
     status: "pendente",
   }));
 
@@ -238,7 +240,7 @@ export async function fecharCompetencia(formData: FormData) {
     .select("nome")
     .eq("competencia_id", competenciaId)
     .eq("critica", true)
-    .or("status.neq.concluida,aprovada_por_id.is.null");
+    .or("status.neq.concluida,and(exige_revisao_4_olhos.eq.true,aprovada_por_id.is.null)");
 
   if (criticasSemAprovacao && criticasSemAprovacao.length > 0) {
     return {

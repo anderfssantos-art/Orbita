@@ -84,7 +84,7 @@ export default async function EmpresaDetalhePage({
       ? await Promise.all([
           supabase
             .from("tarefas")
-            .select("id, nome, setor, critica, status, concluida_por_id, aprovada_por_id")
+            .select("id, nome, setor, critica, exige_revisao_4_olhos, status, concluida_por_id, aprovada_por_id")
             .eq("competencia_id", competenciaAtual.id)
             .order("nome"),
           supabase
@@ -271,7 +271,7 @@ export default async function EmpresaDetalhePage({
                           </button>
                         </form>
                       )}
-                      {t.status === "concluida" && t.critica && !t.aprovada_por_id && (
+                      {t.status === "concluida" && t.critica && t.exige_revisao_4_olhos && !t.aprovada_por_id && (
                         <ActionButton
                           action={aprovarTarefa}
                           fields={{ tarefaId: t.id, empresaId: id }}

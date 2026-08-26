@@ -58,6 +58,10 @@ export function ServicoForm() {
         <input type="checkbox" name="critica" className="h-4 w-4" />
         Serviço crítico
       </label>
+      <label className="flex items-center gap-2 pb-2 text-sm text-zinc-700" title="Se desmarcado, uma tarefa crítica pode ser concluída sem que outra pessoa aprove — útil para quem trabalha sozinho.">
+        <input type="checkbox" name="exigeRevisao" className="h-4 w-4" defaultChecked />
+        Exigir revisão de outra pessoa
+      </label>
 
       <button
         type="submit"

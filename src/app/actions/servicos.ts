@@ -8,6 +8,7 @@ export async function criarServico(formData: FormData) {
   const nome = String(formData.get("nome") ?? "").trim();
   const setor = String(formData.get("setor") ?? "");
   const critica = formData.get("critica") === "on";
+  const exigeRevisao = formData.get("exigeRevisao") === "on";
   const documentosRaw = String(formData.get("documentosNecessarios") ?? "");
   const documentosNecessarios = documentosRaw
     .split(",")
@@ -29,6 +30,7 @@ export async function criarServico(formData: FormData) {
     nome,
     setor,
     critica,
+    exige_revisao_4_olhos: exigeRevisao,
     documentos_necessarios: documentosNecessarios,
   });
 

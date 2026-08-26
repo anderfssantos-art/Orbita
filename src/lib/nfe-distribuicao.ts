@@ -12,7 +12,9 @@ import forge from "node-forge";
 import { SignedXml } from "xml-crypto";
 
 // Ambiente de homologação por padrão — nunca produção sem validação prévia.
-const ENDPOINT_HOMOLOGACAO = "hom.nfe.fazenda.gov.br";
+// O endereço antigo (hom.nfe.fazenda.gov.br) foi descontinuado pela Receita
+// em 2022; "hom1" é o atual.
+const ENDPOINT_HOMOLOGACAO = "hom1.nfe.fazenda.gov.br";
 const PATH_SERVICO = "/NFeDistribuicaoDFe/NFeDistribuicaoDFe.asmx";
 
 type ChavesExtraidas = {

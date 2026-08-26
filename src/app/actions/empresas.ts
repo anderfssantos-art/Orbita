@@ -35,3 +35,26 @@ export async function criarEmpresa(formData: FormData) {
   revalidatePath("/empresas");
   return { sucesso: true };
 }
+
+export async function definirHonorario(formData: FormData) {
+  const empresaId = String(formData.get("empresaId") ?? "");
+  const honorarioRaw = String(formData.get("honorarioMensal") ?? "").replace(",", ".");
+  const honorario = honorarioRaw ? Number(honorarioRaw) : null;
+
+  if (honorarioRaw && (Number.isNaN(honorario) || (honorario as number) < 0)) {
+    return { erro: "Valor inválido." };
+  }
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("empresas")
+    .update({ honorario_mensal: honorario })
+    .eq("id", empresaId);
+
+  if (error) return { erro: "Não foi possível salvar: " + error.message };
+
+  revalidatePath(`/empresas/${empresaId}`);
+  revalidatePath("/rentabilidade");
+  return { sucesso: true };
+}

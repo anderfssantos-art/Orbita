@@ -20,6 +20,7 @@ import { BuscarXmlButton } from "./buscar-xml-button";
 import { UploadEmLote } from "./upload-em-lote";
 import { CaixaEntradaItem } from "./caixa-entrada-item";
 import { ResponsavelSelect } from "./responsavel-select";
+import { HonorarioInput } from "./honorario-input";
 import { usuarioAtual } from "@/lib/supabase/usuario-atual";
 
 const setorLabel: Record<string, string> = {
@@ -59,7 +60,7 @@ export default async function EmpresaDetalhePage({
   ] = await Promise.all([
     supabase
       .from("empresas")
-      .select("id, cnpj, razao_social, regime_tributario, status")
+      .select("id, cnpj, razao_social, regime_tributario, status, honorario_mensal")
       .eq("id", id)
       .maybeSingle(),
     supabase.from("servicos").select("id, nome, setor").order("nome"),
@@ -147,6 +148,9 @@ export default async function EmpresaDetalhePage({
           <p className="mt-1 text-sm text-zinc-600">
             {empresa.cnpj} · {empresa.regime_tributario}
           </p>
+          <div className="mt-2">
+            <HonorarioInput empresaId={id} valorAtual={empresa.honorario_mensal} />
+          </div>
         </div>
       </div>
 

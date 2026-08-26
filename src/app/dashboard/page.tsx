@@ -43,6 +43,12 @@ export default async function DashboardPage() {
             Reforma Tributária
           </Link>
           <Link
+            href="/rentabilidade"
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            Rentabilidade
+          </Link>
+          <Link
             href="/empresas"
             className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
           >

@@ -146,7 +146,11 @@ export async function marcarTarefaConcluida(formData: FormData) {
 
   await supabase
     .from("tarefas")
-    .update({ status: "concluida", concluida_por_id: user?.id ?? null })
+    .update({
+      status: "concluida",
+      concluida_por_id: user?.id ?? null,
+      concluida_em: new Date().toISOString(),
+    })
     .eq("id", tarefaId);
 
   revalidatePath(`/empresas/${empresaId}`);

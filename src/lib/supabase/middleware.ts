@@ -60,7 +60,7 @@ export async function updateSession(request: NextRequest) {
     // Fronteira de papel: nenhuma tela de staff é alcançável por um
     // cliente do portal, e vice-versa — mesmo que a RLS já bloqueie os
     // dados, a rota também não deve nem carregar a tela errada.
-    const rotaSoDeStaff = ["/empresas", "/servicos", "/dashboard", "/reforma-tributaria"].some((p) =>
+    const rotaSoDeStaff = ["/empresas", "/servicos", "/dashboard", "/reforma-tributaria", "/rentabilidade"].some((p) =>
       pathname.startsWith(p)
     );
     const rotaSoDeCliente = pathname.startsWith("/portal") && !pathname.startsWith("/portal/cadastro");

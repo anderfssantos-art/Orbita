@@ -40,6 +40,23 @@ export async function criarServico(formData: FormData) {
   return { sucesso: true };
 }
 
+export async function alternarRevisao4Olhos(formData: FormData) {
+  const servicoId = String(formData.get("servicoId") ?? "");
+  const valor = formData.get("valor") === "true";
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("servicos")
+    .update({ exige_revisao_4_olhos: valor })
+    .eq("id", servicoId);
+
+  if (error) return { erro: "Não foi possível atualizar: " + error.message };
+
+  revalidatePath("/servicos");
+  return { sucesso: true };
+}
+
 export async function vincularServico(formData: FormData) {
   const empresaId = String(formData.get("empresaId") ?? "");
   const servicoId = String(formData.get("servicoId") ?? "");

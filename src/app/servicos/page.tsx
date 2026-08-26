@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { ServicoForm } from "./servico-form";
+import { RevisaoToggle } from "./revisao-toggle";
 
 const setorLabel: Record<string, string> = {
   fiscal: "Fiscal",
@@ -12,7 +13,7 @@ export default async function ServicosPage() {
   const supabase = await createClient();
   const { data: servicos } = await supabase
     .from("servicos")
-    .select("id, nome, setor, critica, documentos_necessarios")
+    .select("id, nome, setor, critica, exige_revisao_4_olhos, documentos_necessarios")
     .order("nome");
 
   return (
@@ -47,6 +48,7 @@ export default async function ServicosPage() {
               <th className="px-4 py-2.5 font-semibold">Setor</th>
               <th className="px-4 py-2.5 font-semibold">Documentos</th>
               <th className="px-4 py-2.5 font-semibold">Crítico</th>
+              <th className="px-4 py-2.5 font-semibold">Revisão 4 olhos</th>
             </tr>
           </thead>
           <tbody>
@@ -69,11 +71,14 @@ export default async function ServicosPage() {
                       <span className="text-zinc-400">Não</span>
                     )}
                   </td>
+                  <td className="px-4 py-2.5">
+                    <RevisaoToggle servicoId={servico.id} ativo={servico.exige_revisao_4_olhos} />
+                  </td>
                 </tr>
               ))
             ) : (
               <tr>
-                <td colSpan={4} className="px-4 py-8 text-center text-sm text-zinc-500">
+                <td colSpan={5} className="px-4 py-8 text-center text-sm text-zinc-500">
                   Nenhum serviço cadastrado ainda.
                 </td>
               </tr>

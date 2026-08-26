@@ -16,6 +16,10 @@ export default async function DashboardPage() {
     { count: totalEmpresas },
     { count: competenciasAbertas },
     { data: pendenciasAbertas },
+    { count: totalServicos },
+    { count: totalServicosVinculados },
+    { count: totalCompetencias },
+    { count: totalClientesConvidados },
   ] = await Promise.all([
     supabase.from("empresas").select("id", { count: "exact", head: true }),
     supabase
@@ -27,7 +31,28 @@ export default async function DashboardPage() {
       .select("id, titulo, severidade, competencias(referencia, empresas(razao_social))")
       .eq("status", "aberta")
       .order("severidade"),
+    supabase.from("servicos").select("id", { count: "exact", head: true }),
+    supabase.from("empresa_servicos").select("empresa_id", { count: "exact", head: true }),
+    supabase.from("competencias").select("id", { count: "exact", head: true }),
+    supabase.from("acessos_cliente").select("id", { count: "exact", head: true }),
   ]);
+
+  const passosOnboarding = [
+    { feito: (totalEmpresas ?? 0) > 0, texto: "Cadastre a primeira empresa", href: "/empresas" },
+    { feito: (totalServicos ?? 0) > 0, texto: "Adicione um serviço ao catálogo", href: "/servicos" },
+    {
+      feito: (totalServicosVinculados ?? 0) > 0,
+      texto: "Contrate um serviço para uma empresa",
+      href: "/empresas",
+    },
+    { feito: (totalCompetencias ?? 0) > 0, texto: "Abra a primeira competência", href: "/empresas" },
+    {
+      feito: (totalClientesConvidados ?? 0) > 0,
+      texto: "Convide um cliente para o portal",
+      href: "/empresas",
+    },
+  ];
+  const onboardingCompleto = passosOnboarding.every((p) => p.feito);
 
   const porSeveridade = { alta: 0, media: 0, baixa: 0 } as Record<string, number>;
   (pendenciasAbertas ?? []).forEach((p) => {
@@ -44,6 +69,12 @@ export default async function DashboardPage() {
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <Link
+            href="/ajuda"
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            Ajuda
+          </Link>
           <Link
             href="/reforma-tributaria"
             className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
@@ -64,6 +95,33 @@ export default async function DashboardPage() {
           </Link>
         </div>
       </div>
+
+      {!onboardingCompleto && (
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+          <h2 className="text-sm font-semibold text-zinc-900">Primeiros passos</h2>
+          <ul className="mt-2 flex flex-col gap-1.5">
+            {passosOnboarding.map((p, i) => (
+              <li key={i} className="flex items-center gap-2 text-sm">
+                <span
+                  className={
+                    "flex h-4 w-4 flex-shrink-0 items-center justify-center rounded-full text-[10px] font-bold " +
+                    (p.feito ? "bg-emerald-600 text-white" : "border border-zinc-300 text-transparent")
+                  }
+                >
+                  ✓
+                </span>
+                {p.feito ? (
+                  <span className="text-zinc-400 line-through">{p.texto}</span>
+                ) : (
+                  <Link href={p.href} className="text-emerald-800 hover:underline">
+                    {p.texto}
+                  </Link>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
 
       <div className="rounded-xl border border-zinc-200 bg-white p-4">
         <div className="flex items-center justify-between">

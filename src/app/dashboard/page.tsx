@@ -35,12 +35,20 @@ export default async function DashboardPage() {
             Painel do escritório
           </h1>
         </div>
-        <Link
-          href="/empresas"
-          className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
-        >
-          Empresas
-        </Link>
+        <div className="flex items-center gap-2">
+          <Link
+            href="/reforma-tributaria"
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            Reforma Tributária
+          </Link>
+          <Link
+            href="/empresas"
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            Empresas
+          </Link>
+        </div>
       </div>
 
       <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">

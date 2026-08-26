@@ -3,21 +3,27 @@ import { avaliarRegras, type ContextoRegra } from "./regras-auditoria";
 
 function baseCtx(overrides: Partial<ContextoRegra> = {}): ContextoRegra {
   return {
-    empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500 },
+    empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500, cnpj: "33508879000136" },
     competencia: { referencia: "2026-08-01", status: "aberta" },
     tarefas: [],
     servicosContratados: [],
     certificados: [],
     documentos: [],
+    documentosFiscais: [],
     ...overrides,
   };
+}
+
+function chaveComNumero(cnpj: string, serie: string, numero: number): string {
+  const numeroStr = String(numero).padStart(9, "0");
+  return `35${"2608"}${cnpj}${"55"}${serie}${numeroStr}${"1"}${"12345678"}${"9"}`;
 }
 
 describe("regime_ecf_incompativel", () => {
   it("dispara quando Simples Nacional contrata SPED ECF", () => {
     const alertas = avaliarRegras(
       baseCtx({
-        empresa: { regime_tributario: "Simples Nacional", honorario_mensal: 500 },
+        empresa: { regime_tributario: "Simples Nacional", honorario_mensal: 500, cnpj: "33508879000136" },
         servicosContratados: [{ nome: "SPED ECF (fiscal)" }],
       })
     );
@@ -27,7 +33,7 @@ describe("regime_ecf_incompativel", () => {
   it("não dispara para Lucro Presumido com SPED ECF (é obrigatório, não é erro)", () => {
     const alertas = avaliarRegras(
       baseCtx({
-        empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500 },
+        empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500, cnpj: "33508879000136" },
         servicosContratados: [{ nome: "SPED ECF (fiscal)" }],
       })
     );
@@ -37,7 +43,7 @@ describe("regime_ecf_incompativel", () => {
   it("não dispara para Simples Nacional sem SPED ECF contratado", () => {
     const alertas = avaliarRegras(
       baseCtx({
-        empresa: { regime_tributario: "Simples Nacional", honorario_mensal: 500 },
+        empresa: { regime_tributario: "Simples Nacional", honorario_mensal: 500, cnpj: "33508879000136" },
         servicosContratados: [{ nome: "Processamento da folha de pagamento" }],
       })
     );
@@ -122,14 +128,14 @@ describe("certificado_vencido_ou_vencendo", () => {
 describe("honorario_nao_definido", () => {
   it("dispara quando honorario_mensal é null", () => {
     const alertas = avaliarRegras(
-      baseCtx({ empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: null } })
+      baseCtx({ empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: null, cnpj: "33508879000136" } })
     );
     expect(alertas.map((a) => a.codigo)).toContain("honorario_nao_definido");
   });
 
   it("não dispara quando honorario_mensal está definido, mesmo que zero", () => {
     const alertas = avaliarRegras(
-      baseCtx({ empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 0 } })
+      baseCtx({ empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 0, cnpj: "33508879000136" } })
     );
     expect(alertas.map((a) => a.codigo)).not.toContain("honorario_nao_definido");
   });
@@ -176,5 +182,99 @@ describe("documento_recebido_sem_arquivo", () => {
       baseCtx({ documentos: [{ tipo: "XML de entrada", status: "faltando", arquivo_url: null }] })
     );
     expect(alertas.map((a) => a.codigo)).not.toContain("documento_recebido_sem_arquivo");
+  });
+});
+
+describe("nfe_duplicada", () => {
+  it("dispara quando a mesma chave de acesso aparece duas vezes", () => {
+    const chave = chaveComNumero("33508879000136", "001", 100);
+    const alertas = avaliarRegras(
+      baseCtx({
+        documentosFiscais: [
+          { chaveAcesso: chave, schema: "resNFe_v1.01.xsd" },
+          { chaveAcesso: chave, schema: "resNFe_v1.01.xsd" },
+        ],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).toContain("nfe_duplicada");
+  });
+
+  it("não dispara para chaves diferentes", () => {
+    const alertas = avaliarRegras(
+      baseCtx({
+        documentosFiscais: [
+          { chaveAcesso: chaveComNumero("33508879000136", "001", 100), schema: "resNFe_v1.01.xsd" },
+          { chaveAcesso: chaveComNumero("33508879000136", "001", 101), schema: "resNFe_v1.01.xsd" },
+        ],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("nfe_duplicada");
+  });
+
+  it("ignora documentos sem chave de acesso", () => {
+    const alertas = avaliarRegras(
+      baseCtx({ documentosFiscais: [{ chaveAcesso: null, schema: "resNFe_v1.01.xsd" }] })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("nfe_duplicada");
+  });
+});
+
+describe("nfe_com_cancelamento", () => {
+  it("dispara quando o schema indica evento de cancelamento", () => {
+    const alertas = avaliarRegras(
+      baseCtx({ documentosFiscais: [{ chaveAcesso: null, schema: "procEventoNFe_v1.00_procCancNFe.xsd" }] })
+    );
+    expect(alertas.map((a) => a.codigo)).toContain("nfe_com_cancelamento");
+  });
+
+  it("não dispara para uma nota normal (resNFe)", () => {
+    const alertas = avaliarRegras(
+      baseCtx({ documentosFiscais: [{ chaveAcesso: null, schema: "resNFe_v1.01.xsd" }] })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("nfe_com_cancelamento");
+  });
+});
+
+describe("quebra_sequencia_numeracao", () => {
+  it("dispara quando falta um número no meio da sequência própria", () => {
+    const cnpj = "33508879000136";
+    const alertas = avaliarRegras(
+      baseCtx({
+        empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500, cnpj },
+        documentosFiscais: [
+          { chaveAcesso: chaveComNumero(cnpj, "001", 100), schema: "resNFe_v1.01.xsd" },
+          { chaveAcesso: chaveComNumero(cnpj, "001", 102), schema: "resNFe_v1.01.xsd" },
+        ],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).toContain("quebra_sequencia_numeracao");
+  });
+
+  it("não dispara para sequência completa", () => {
+    const cnpj = "33508879000136";
+    const alertas = avaliarRegras(
+      baseCtx({
+        empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500, cnpj },
+        documentosFiscais: [
+          { chaveAcesso: chaveComNumero(cnpj, "001", 100), schema: "resNFe_v1.01.xsd" },
+          { chaveAcesso: chaveComNumero(cnpj, "001", 101), schema: "resNFe_v1.01.xsd" },
+          { chaveAcesso: chaveComNumero(cnpj, "001", 102), schema: "resNFe_v1.01.xsd" },
+        ],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("quebra_sequencia_numeracao");
+  });
+
+  it("ignora notas recebidas de outros CNPJs (não é sequência própria)", () => {
+    const alertas = avaliarRegras(
+      baseCtx({
+        empresa: { regime_tributario: "Lucro Presumido", honorario_mensal: 500, cnpj: "33508879000136" },
+        documentosFiscais: [
+          { chaveAcesso: chaveComNumero("11222333000181", "001", 100), schema: "resNFe_v1.01.xsd" },
+          { chaveAcesso: chaveComNumero("11222333000181", "001", 105), schema: "resNFe_v1.01.xsd" },
+        ],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("quebra_sequencia_numeracao");
   });
 });

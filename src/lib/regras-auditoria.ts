@@ -7,14 +7,16 @@
  * propósito, pra manter previsibilidade e evitar falso-positivo criado por
  * configuração errada de alguém sem contexto tributário.
  */
+import { decodificarChaveAcesso } from "./chave-acesso";
 
 export type ContextoRegra = {
-  empresa: { regime_tributario: string; honorario_mensal: number | null };
+  empresa: { regime_tributario: string; honorario_mensal: number | null; cnpj: string };
   competencia: { referencia: string; status: string };
   tarefas: { nome: string; critica: boolean; responsavel_id: string | null }[];
   servicosContratados: { nome: string }[];
   certificados: { validade: string | null }[];
   documentos: { tipo: string; status: string; arquivo_url: string | null }[];
+  documentosFiscais: { chaveAcesso: string | null; schema: string }[];
 };
 
 export type AlertaGerado = {
@@ -182,6 +184,87 @@ const regras: Regra[] = [
         descricao: `Tipos afetados: ${inconsistentes.map((d) => d.tipo).join(", ")}.`,
         severidade: "media",
         acaoRecomendada: "Verificar se o arquivo realmente foi enviado; se não, reabrir a pendência.",
+      };
+    },
+  },
+  {
+    // Duas linhas com a mesma chave de acesso só acontecem por reprocessar
+    // a busca de XML sem checar o que já existe, ou por bug de ingestão —
+    // nunca é uma situação fiscal legítima.
+    codigo: "nfe_duplicada",
+    avaliar(ctx) {
+      const contagem = new Map<string, number>();
+      for (const doc of ctx.documentosFiscais) {
+        if (!doc.chaveAcesso) continue;
+        contagem.set(doc.chaveAcesso, (contagem.get(doc.chaveAcesso) ?? 0) + 1);
+      }
+      const duplicadas = [...contagem.entries()].filter(([, n]) => n > 1);
+      if (duplicadas.length === 0) return null;
+      return {
+        codigo: this.codigo,
+        titulo: `${duplicadas.length} nota(s) fiscal(is) duplicada(s) na base`,
+        descricao: `Chave(s) de acesso repetida(s): ${duplicadas.map(([chave]) => chave.slice(-8)).join(", ")} (últimos 8 dígitos mostrados).`,
+        severidade: "media",
+        acaoRecomendada: "Conferir se é a mesma nota baixada duas vezes ou um erro de dado, e remover a duplicata.",
+      };
+    },
+  },
+  {
+    // A distribuição de XML também traz eventos de cancelamento — se um
+    // deles está entre os documentos baixados, a nota correspondente não
+    // deve mais ser considerada válida para apuração.
+    codigo: "nfe_com_cancelamento",
+    avaliar(ctx) {
+      const cancelamentos = ctx.documentosFiscais.filter((d) => /canc/i.test(d.schema));
+      if (cancelamentos.length === 0) return null;
+      return {
+        codigo: this.codigo,
+        titulo: `${cancelamentos.length} evento(s) de cancelamento de NF-e recebido(s)`,
+        descricao: "Há evento de cancelamento entre os documentos baixados da Receita para esta empresa.",
+        severidade: "alta",
+        acaoRecomendada: "Confirmar que a nota cancelada não foi (ou não será) considerada na apuração de impostos.",
+      };
+    },
+  },
+  {
+    // Quebra de sequência na numeração das notas que a própria empresa
+    // emitiu (não nas que ela recebe) é um sinal clássico de nota fora do
+    // sistema ou de falha na captura — não é 100% conclusivo (a empresa
+    // pode ter cancelado/inutilizado a faixa por outro motivo legítimo),
+    // por isso severidade baixa e ação de "confirmar", não "corrigir".
+    codigo: "quebra_sequencia_numeracao",
+    avaliar(ctx) {
+      const cnpjLimpo = (ctx.empresa.cnpj ?? "").replace(/\D/g, "");
+      if (!cnpjLimpo) return null;
+      const proprias = ctx.documentosFiscais
+        .map((d) => (d.chaveAcesso ? decodificarChaveAcesso(d.chaveAcesso) : null))
+        .filter((d): d is NonNullable<typeof d> => d !== null && d.cnpj === cnpjLimpo);
+
+      const porSerie = new Map<string, number[]>();
+      for (const d of proprias) {
+        const lista = porSerie.get(d.serie) ?? [];
+        lista.push(d.numero);
+        porSerie.set(d.serie, lista);
+      }
+
+      const lacunas: string[] = [];
+      for (const [serie, numeros] of porSerie) {
+        const ordenados = [...new Set(numeros)].sort((a, b) => a - b);
+        for (let i = 1; i < ordenados.length; i++) {
+          const salto = ordenados[i] - ordenados[i - 1];
+          if (salto > 1) {
+            lacunas.push(`série ${serie}: falta(m) ${salto - 1} número(s) entre ${ordenados[i - 1]} e ${ordenados[i]}`);
+          }
+        }
+      }
+
+      if (lacunas.length === 0) return null;
+      return {
+        codigo: this.codigo,
+        titulo: "Quebra de sequência na numeração de notas emitidas",
+        descricao: lacunas.join("; "),
+        severidade: "baixa",
+        acaoRecomendada: "Confirmar se os números faltando foram cancelados/inutilizados ou se há nota fora do sistema.",
       };
     },
   },

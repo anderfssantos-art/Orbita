@@ -17,6 +17,7 @@ export type ContextoRegra = {
   certificados: { validade: string | null }[];
   documentos: { tipo: string; status: string; arquivo_url: string | null }[];
   documentosFiscais: { chaveAcesso: string | null; schema: string }[];
+  funcionarios: { nome: string; status: string; dataAdmissao: string; temFerias: boolean }[];
 };
 
 export type AlertaGerado = {
@@ -265,6 +266,32 @@ const regras: Regra[] = [
         descricao: lacunas.join("; "),
         severidade: "baixa",
         acaoRecomendada: "Confirmar se os números faltando foram cancelados/inutilizados ou se há nota fora do sistema.",
+      };
+    },
+  },
+  {
+    // Versão conservadora de "férias vencidas": só aponta o caso mais
+    // grave e inequívoco (nunca tirou nenhuma férias apesar de já ter
+    // completado período aquisitivo + concessivo, 24 meses). Não tenta
+    // rastrear ciclos parciais depois da primeira férias — isso exigiria
+    // modelar o período aquisitivo/concessivo com precisão, e um cálculo
+    // errado aqui é pior do que não calcular.
+    codigo: "ferias_vencidas",
+    avaliar(ctx) {
+      const [anoAtual, mesAtual] = [new Date().getFullYear(), new Date().getMonth() + 1];
+      const vencidos = ctx.funcionarios.filter((f) => {
+        if (f.status !== "ativo" || f.temFerias) return false;
+        const [anoAdm, mesAdm] = f.dataAdmissao.split("-").map(Number);
+        const mesesDesdeAdmissao = (anoAtual - anoAdm) * 12 + (mesAtual - mesAdm);
+        return mesesDesdeAdmissao >= 24;
+      });
+      if (vencidos.length === 0) return null;
+      return {
+        codigo: this.codigo,
+        titulo: `${vencidos.length} funcionário(s) com férias vencidas`,
+        descricao: `Nunca registraram férias apesar de mais de 2 anos de casa: ${vencidos.map((f) => f.nome).join(", ")}. Isso gera pagamento em dobro por lei.`,
+        severidade: "alta",
+        acaoRecomendada: "Programar as férias imediatamente e verificar o passivo trabalhista já gerado.",
       };
     },
   },

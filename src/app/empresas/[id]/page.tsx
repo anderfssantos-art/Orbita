@@ -21,6 +21,8 @@ import { UploadEmLote } from "./upload-em-lote";
 import { CaixaEntradaItem } from "./caixa-entrada-item";
 import { ResponsavelSelect } from "./responsavel-select";
 import { HonorarioInput } from "./honorario-input";
+import { FuncionarioForm } from "./funcionario-form";
+import { FuncionarioItem } from "./funcionario-item";
 import { usuarioAtual } from "@/lib/supabase/usuario-atual";
 
 const setorLabel: Record<string, string> = {
@@ -57,6 +59,7 @@ export default async function EmpresaDetalhePage({
     { data: competencias },
     { data: certificados },
     { data: caixaEntrada },
+    { data: funcionarios },
   ] = await Promise.all([
     supabase
       .from("empresas")
@@ -85,9 +88,21 @@ export default async function EmpresaDetalhePage({
       .eq("empresa_id", id)
       .eq("status", "pendente")
       .order("criado_em", { ascending: false }),
+    supabase
+      .from("funcionarios")
+      .select("id, nome, status, data_admissao")
+      .eq("empresa_id", id)
+      .order("nome"),
   ]);
 
   if (!empresa) notFound();
+
+  const idsFuncionarios = (funcionarios ?? []).map((f) => f.id);
+  const { data: feriasRegistradas } =
+    idsFuncionarios.length > 0
+      ? await supabase.from("ferias").select("funcionario_id").in("funcionario_id", idsFuncionarios)
+      : { data: [] };
+  const funcionariosComFerias = new Set((feriasRegistradas ?? []).map((f) => f.funcionario_id));
 
   const servicosContratados = (contratados ?? [])
     .map((row) => row.servicos)
@@ -431,6 +446,28 @@ export default async function EmpresaDetalhePage({
           <p className="text-sm text-zinc-500">
             Nenhuma competência aberta este mês.
           </p>
+        )}
+      </section>
+
+      <section className="flex flex-col gap-4 rounded-xl border border-zinc-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-zinc-900">Departamento Pessoal</h2>
+        <FuncionarioForm empresaId={id} />
+        {funcionarios && funcionarios.length > 0 ? (
+          <ul className="flex flex-col gap-1.5">
+            {funcionarios.map((f) => (
+              <FuncionarioItem
+                key={f.id}
+                funcionarioId={f.id}
+                empresaId={id}
+                nome={f.nome}
+                status={f.status}
+                dataAdmissao={f.data_admissao}
+                temFerias={funcionariosComFerias.has(f.id)}
+              />
+            ))}
+          </ul>
+        ) : (
+          <p className="text-sm text-zinc-500">Nenhum funcionário cadastrado ainda.</p>
         )}
       </section>
 

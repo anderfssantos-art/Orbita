@@ -10,6 +10,7 @@ function baseCtx(overrides: Partial<ContextoRegra> = {}): ContextoRegra {
     certificados: [],
     documentos: [],
     documentosFiscais: [],
+    funcionarios: [],
     ...overrides,
   };
 }
@@ -276,5 +277,49 @@ describe("quebra_sequencia_numeracao", () => {
       })
     );
     expect(alertas.map((a) => a.codigo)).not.toContain("quebra_sequencia_numeracao");
+  });
+});
+
+function dataHaMesesAtras(meses: number): string {
+  const d = new Date();
+  d.setMonth(d.getMonth() - meses);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+describe("ferias_vencidas", () => {
+  it("dispara para funcionário ativo há mais de 24 meses sem nenhuma férias", () => {
+    const alertas = avaliarRegras(
+      baseCtx({
+        funcionarios: [{ nome: "Maria", status: "ativo", dataAdmissao: dataHaMesesAtras(30), temFerias: false }],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).toContain("ferias_vencidas");
+  });
+
+  it("não dispara se já tirou férias alguma vez", () => {
+    const alertas = avaliarRegras(
+      baseCtx({
+        funcionarios: [{ nome: "Maria", status: "ativo", dataAdmissao: dataHaMesesAtras(30), temFerias: true }],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("ferias_vencidas");
+  });
+
+  it("não dispara para admissão recente (menos de 24 meses)", () => {
+    const alertas = avaliarRegras(
+      baseCtx({
+        funcionarios: [{ nome: "Maria", status: "ativo", dataAdmissao: dataHaMesesAtras(10), temFerias: false }],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("ferias_vencidas");
+  });
+
+  it("não dispara para funcionário demitido", () => {
+    const alertas = avaliarRegras(
+      baseCtx({
+        funcionarios: [{ nome: "Maria", status: "demitido", dataAdmissao: dataHaMesesAtras(30), temFerias: false }],
+      })
+    );
+    expect(alertas.map((a) => a.codigo)).not.toContain("ferias_vencidas");
   });
 });

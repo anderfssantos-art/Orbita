@@ -24,6 +24,7 @@ export async function rodarAuditoria(formData: FormData) {
     { data: certificados },
     { data: documentos },
     { data: documentosFiscais },
+    { data: funcionarios },
   ] = await Promise.all([
     supabase.from("empresas").select("regime_tributario, honorario_mensal, cnpj").eq("id", empresaId).maybeSingle(),
     supabase.from("competencias").select("referencia, status").eq("id", competenciaId).maybeSingle(),
@@ -35,7 +36,15 @@ export async function rodarAuditoria(formData: FormData) {
     supabase.from("certificados_digitais").select("validade").eq("empresa_id", empresaId),
     supabase.from("documentos").select("tipo, status, arquivo_url").eq("competencia_id", competenciaId),
     supabase.from("documentos_fiscais").select("chave_acesso, schema").eq("empresa_id", empresaId),
+    supabase.from("funcionarios").select("id, nome, status, data_admissao").eq("empresa_id", empresaId),
   ]);
+
+  const idsFuncionarios = (funcionarios ?? []).map((f) => f.id);
+  const { data: feriasRegistradas } =
+    idsFuncionarios.length > 0
+      ? await supabase.from("ferias").select("funcionario_id").in("funcionario_id", idsFuncionarios)
+      : { data: [] };
+  const funcionariosComFerias = new Set((feriasRegistradas ?? []).map((f) => f.funcionario_id));
 
   if (!empresa || !competencia) return { erro: "Competência ou empresa não encontrada." };
 
@@ -51,6 +60,12 @@ export async function rodarAuditoria(formData: FormData) {
     certificados: certificados ?? [],
     documentos: documentos ?? [],
     documentosFiscais: (documentosFiscais ?? []).map((d) => ({ chaveAcesso: d.chave_acesso, schema: d.schema })),
+    funcionarios: (funcionarios ?? []).map((f) => ({
+      nome: f.nome,
+      status: f.status,
+      dataAdmissao: f.data_admissao,
+      temFerias: funcionariosComFerias.has(f.id),
+    })),
   });
 
   const codigosQueDisparam = new Set(alertas.map((a) => a.codigo));

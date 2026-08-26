@@ -56,14 +56,18 @@ export function BuscarXmlButton({
       </div>
       {resultado && (
         <div className="text-xs">
-          {resultado.erro && <p className="text-red-600">Erro: {resultado.erro}</p>}
-          {resultado.respostaBruta && (
-            <details className="mt-1">
+          <p className={resultado.sucesso ? "text-emerald-700" : "text-red-600"}>
+            {resultado.sucesso ? "Resposta recebida." : `Erro: ${resultado.erro ?? "sem detalhes."}`}
+          </p>
+          {resultado.respostaBruta ? (
+            <details className="mt-1" open>
               <summary className="cursor-pointer text-zinc-600">Ver resposta bruta da Receita</summary>
               <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-white p-2 text-[10px] text-zinc-700">
                 {resultado.respostaBruta}
               </pre>
             </details>
+          ) : (
+            <p className="mt-1 text-zinc-500">(sem corpo de resposta)</p>
           )}
         </div>
       )}

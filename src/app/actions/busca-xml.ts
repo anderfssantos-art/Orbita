@@ -2,7 +2,6 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { buscarDocumentosFiscais } from "@/lib/nfe-distribuicao";
-import { revalidatePath } from "next/cache";
 
 export async function buscarXmlDaEmpresa(formData: FormData) {
   const empresaId = String(formData.get("empresaId") ?? "");
@@ -40,8 +39,6 @@ export async function buscarXmlDaEmpresa(formData: FormData) {
     dados.ultimo_nsu,
     cUF
   );
-
-  revalidatePath(`/empresas/${empresaId}`);
 
   return {
     sucesso: resultado.sucesso,

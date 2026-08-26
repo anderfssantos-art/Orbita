@@ -1,15 +1,14 @@
 /**
  * Cliente para o webservice NFeDistribuicaoDFe da Receita Federal.
  *
- * IMPORTANTE: escrito com base na documentação oficial e em bibliotecas
- * mantidas ativamente (node-forge, xml-crypto), mas NUNCA testado contra
- * um certificado A1 real nem contra o ambiente da Receita — não há como
- * validar isso sem um certificado de verdade. Trate como experimental até
- * ser validado em homologação.
+ * A autenticação é feita só pelo certificado apresentado no handshake TLS
+ * (mTLS) — o XML da requisição (distDFeInt) NÃO é assinado com XML-DSig,
+ * diferente de outros serviços de NFe. Assinar essa mensagem faz a Receita
+ * rejeitar com cStat 215 ("Falha no esquema xml"), pois o schema não prevê
+ * um elemento Signature dentro de distDFeInt.
  */
 import https from "node:https";
 import forge from "node-forge";
-import { SignedXml } from "xml-crypto";
 
 // Ambiente de homologação por padrão — nunca produção sem validação prévia.
 // O endereço antigo (hom.nfe.fazenda.gov.br) foi descontinuado pela Receita
@@ -59,26 +58,6 @@ function montarXmlDistribuicao(cnpj: string, ultimoNsu: string, cUF: string): st
   );
 }
 
-function assinarXml(xml: string, certPem: string, chavePem: string): string {
-  const sig = new SignedXml({
-    privateKey: chavePem,
-    publicCert: certPem,
-  });
-  sig.addReference({
-    xpath: "//*[local-name(.)='distDFeInt']",
-    isEmptyUri: true,
-    transforms: [
-      "http://www.w3.org/2000/09/xmldsig#enveloped-signature",
-      "http://www.w3.org/TR/2001/REC-xml-c14n-20010315",
-    ],
-    digestAlgorithm: "http://www.w3.org/2000/09/xmldsig#sha1",
-  });
-  sig.signatureAlgorithm = "http://www.w3.org/2000/09/xmldsig#rsa-sha1";
-  sig.canonicalizationAlgorithm = "http://www.w3.org/TR/2001/REC-xml-c14n-20010315";
-  sig.computeSignature(xml);
-  return sig.getSignedXml();
-}
-
 function montarEnvelopeSoap(xmlAssinado: string): string {
   return (
     `<?xml version="1.0" encoding="utf-8"?>` +
@@ -112,9 +91,8 @@ export async function buscarDocumentosFiscais(
 ): Promise<ResultadoBuscaXml> {
   const pfxBuffer = Buffer.from(arquivoBase64, "base64");
 
-  let chaves: ChavesExtraidas;
   try {
-    chaves = extrairChavesPem(pfxBuffer, senha);
+    extrairChavesPem(pfxBuffer, senha); // valida que o arquivo/senha abrem antes de gastar uma chamada de rede
   } catch (e) {
     return {
       sucesso: false,
@@ -124,18 +102,7 @@ export async function buscarDocumentosFiscais(
   }
 
   const xml = montarXmlDistribuicao(cnpj, ultimoNsu, cUF);
-  let xmlAssinado: string;
-  try {
-    xmlAssinado = assinarXml(xml, chaves.certPem, chaves.chavePem);
-  } catch (e) {
-    return {
-      sucesso: false,
-      respostaBruta: "",
-      erro: "Não foi possível assinar a mensagem: " + (e as Error).message,
-    };
-  }
-
-  const envelope = montarEnvelopeSoap(xmlAssinado);
+  const envelope = montarEnvelopeSoap(xml);
 
   return new Promise((resolve) => {
     const req = https.request(
@@ -159,7 +126,7 @@ export async function buscarDocumentosFiscais(
             sucesso: (res.statusCode ?? 500) < 300,
             respostaBruta: corpo,
             erro: (res.statusCode ?? 500) >= 300 ? `HTTP ${res.statusCode}` : undefined,
-            xmlEnviado: xmlAssinado,
+            xmlEnviado: xml,
           });
         });
       }

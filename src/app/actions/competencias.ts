@@ -87,15 +87,17 @@ export async function abrirCompetencia(formData: FormData) {
     status: "pendente",
   }));
 
-  const documentos = servicos.flatMap((servico) =>
-    servico.documentos_necessarios.map((tipo) => ({
-      escritorio_id: usuario.escritorio_id,
-      competencia_id: competencia.id,
-      tipo,
-      origem: "esperado",
-      status: "faltando",
-    }))
-  );
+  // Serviços diferentes podem exigir o mesmo tipo de documento (ex: XML de
+  // entrada serve tanto pra apuração quanto pra escrituração fiscal) — um
+  // pedido só por tipo, não um por serviço que o usa.
+  const tiposUnicos = [...new Set(servicos.flatMap((servico) => servico.documentos_necessarios))];
+  const documentos = tiposUnicos.map((tipo) => ({
+    escritorio_id: usuario.escritorio_id,
+    competencia_id: competencia.id,
+    tipo,
+    origem: "esperado",
+    status: "faltando",
+  }));
 
   const { error: tarefasError } = await supabase.from("tarefas").insert(tarefas);
   if (tarefasError) {

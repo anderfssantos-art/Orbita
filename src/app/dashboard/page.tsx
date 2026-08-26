@@ -88,6 +88,12 @@ export default async function DashboardPage() {
             Rentabilidade
           </Link>
           <Link
+            href="/eventos"
+            className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
+          >
+            Trilha de auditoria
+          </Link>
+          <Link
             href="/empresas"
             className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm text-zinc-700 hover:bg-zinc-50"
           >

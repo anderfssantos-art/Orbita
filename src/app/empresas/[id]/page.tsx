@@ -12,6 +12,7 @@ import {
   fecharCompetencia,
 } from "@/app/actions/competencias";
 import { resolverPendencia } from "@/app/actions/pendencias";
+import { rodarAuditoria, tratarAlerta } from "@/app/actions/auditoria";
 import { DocumentoUpload } from "./documento-upload";
 import { GerarConviteButton } from "./gerar-convite-button";
 import { CertificadoUpload } from "./certificado-upload";
@@ -96,8 +97,8 @@ export default async function EmpresaDetalhePage({
 
   const competenciaAtual = competencias?.[0];
 
-  // Estas três só dependem da competência acima, mas não umas das outras.
-  const [{ data: tarefas }, { data: documentos }, { data: pendencias }] =
+  // Estas quatro só dependem da competência acima, mas não umas das outras.
+  const [{ data: tarefas }, { data: documentos }, { data: pendencias }, { data: alertas }] =
     competenciaAtual
       ? await Promise.all([
           supabase
@@ -115,8 +116,14 @@ export default async function EmpresaDetalhePage({
             .select("id, titulo, descricao, severidade, status")
             .eq("competencia_id", competenciaAtual.id)
             .order("criada_em", { ascending: false }),
+          supabase
+            .from("alertas_auditoria")
+            .select("id, titulo, descricao, severidade, acao_recomendada, status")
+            .eq("competencia_id", competenciaAtual.id)
+            .eq("status", "aberto")
+            .order("severidade"),
         ])
-      : [{ data: [] }, { data: [] }, { data: [] }];
+      : [{ data: [] }, { data: [] }, { data: [] }, { data: [] }];
 
   const pendenciasAbertas = (pendencias ?? []).filter((p) => p.status === "aberta");
 
@@ -217,6 +224,12 @@ export default async function EmpresaDetalhePage({
                       pendingLabel="Conferindo..."
                     />
                     <ActionButton
+                      action={rodarAuditoria}
+                      fields={{ competenciaId: competenciaAtual.id, empresaId: id }}
+                      label="Rodar auditoria"
+                      pendingLabel="Auditando..."
+                    />
+                    <ActionButton
                       action={fecharCompetencia}
                       fields={{ competenciaId: competenciaAtual.id, empresaId: id }}
                       label="Fechar competência"
@@ -262,6 +275,56 @@ export default async function EmpresaDetalhePage({
                           resolver
                         </button>
                       </form>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {alertas && alertas.length > 0 && (
+              <div>
+                <h3 className="mb-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
+                  Alertas de auditoria ({alertas.length})
+                </h3>
+                <ul className="flex flex-col gap-1.5">
+                  {alertas.map((a) => (
+                    <li
+                      key={a.id}
+                      className="flex flex-col gap-1.5 rounded-lg bg-amber-50 px-3 py-2 text-sm"
+                    >
+                      <div className="flex items-start justify-between gap-3">
+                        <div className="flex items-center gap-2">
+                          <span className="font-medium text-zinc-900">{a.titulo}</span>
+                          <span
+                            className={
+                              "rounded-full px-2 py-0.5 text-xs font-semibold " +
+                              (severidadeStyle[a.severidade] ?? "bg-zinc-100 text-zinc-600")
+                            }
+                          >
+                            {a.severidade}
+                          </span>
+                        </div>
+                        <div className="flex flex-shrink-0 items-center gap-2">
+                          <form action={tratarAlerta}>
+                            <input type="hidden" name="alertaId" value={a.id} />
+                            <input type="hidden" name="empresaId" value={id} />
+                            <input type="hidden" name="status" value="resolvido" />
+                            <button className="whitespace-nowrap text-xs font-semibold text-emerald-700 hover:underline">
+                              resolver
+                            </button>
+                          </form>
+                          <form action={tratarAlerta}>
+                            <input type="hidden" name="alertaId" value={a.id} />
+                            <input type="hidden" name="empresaId" value={id} />
+                            <input type="hidden" name="status" value="ignorado" />
+                            <button className="whitespace-nowrap text-xs text-zinc-500 hover:underline">
+                              ignorar
+                            </button>
+                          </form>
+                        </div>
+                      </div>
+                      <p className="text-xs text-zinc-600">{a.descricao}</p>
+                      <p className="text-xs font-medium text-zinc-700">→ {a.acao_recomendada}</p>
                     </li>
                   ))}
                 </ul>

@@ -63,10 +63,16 @@ const regras: Regra[] = [
     codigo: "competencia_atrasada",
     avaliar(ctx) {
       if (ctx.competencia.status !== "aberta") return null;
-      const referencia = new Date(ctx.competencia.referencia);
+      // Compara só ano/mês como números — evitar `new Date(string)` aqui é
+      // proposital: uma referencia "YYYY-MM-DD" vira meia-noite UTC, e
+      // comparar isso com "meia-noite local" faz o mês corrente disparar
+      // como atrasado sempre que o fuso local está atrás de UTC (Brasil).
+      const [anoRef, mesRef] = ctx.competencia.referencia.split("-").map(Number);
       const hoje = new Date();
-      const primeiroDiaMesAtual = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
-      if (referencia >= primeiroDiaMesAtual) return null;
+      const anoAtual = hoje.getFullYear();
+      const mesAtual = hoje.getMonth() + 1;
+      const referenciaEhAnterior = anoRef < anoAtual || (anoRef === anoAtual && mesRef < mesAtual);
+      if (!referenciaEhAnterior) return null;
       return {
         codigo: this.codigo,
         titulo: "Competência de mês anterior ainda aberta",

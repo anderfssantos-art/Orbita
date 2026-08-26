@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { usuarioAtual } from "@/lib/supabase/usuario-atual";
+import { planoDe } from "@/lib/planos";
 import { revalidatePath } from "next/cache";
 
 export async function criarEmpresa(formData: FormData) {
@@ -19,6 +20,27 @@ export async function criarEmpresa(formData: FormData) {
 
   if (!usuario) {
     return { erro: "Usuário sem escritório vinculado." };
+  }
+
+  const { data: escritorio } = await supabase
+    .from("escritorios")
+    .select("plano")
+    .eq("id", usuario.escritorio_id)
+    .maybeSingle();
+
+  const plano = planoDe(escritorio?.plano ?? "trial");
+
+  if (plano.limiteEmpresas != null) {
+    const { count } = await supabase
+      .from("empresas")
+      .select("id", { count: "exact", head: true })
+      .eq("escritorio_id", usuario.escritorio_id);
+
+    if ((count ?? 0) >= plano.limiteEmpresas) {
+      return {
+        erro: `Limite do plano ${plano.nome} atingido (${plano.limiteEmpresas} empresas). Fale com a gente para fazer upgrade.`,
+      };
+    }
   }
 
   const { error } = await supabase.from("empresas").insert({

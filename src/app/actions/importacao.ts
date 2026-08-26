@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { usuarioAtual } from "@/lib/supabase/usuario-atual";
 import { parseCsvLine } from "@/lib/csv";
+import { planoDe } from "@/lib/planos";
 import { revalidatePath } from "next/cache";
 
 export async function importarCarteira(formData: FormData) {
@@ -54,6 +55,30 @@ export async function importarCarteira(formData: FormData) {
 
   if (validas.length === 0) {
     return { erro: "Nenhuma linha válida para importar.", detalhes: erros };
+  }
+
+  const { data: escritorio } = await supabase
+    .from("escritorios")
+    .select("plano")
+    .eq("id", usuario.escritorio_id)
+    .maybeSingle();
+
+  const plano = planoDe(escritorio?.plano ?? "trial");
+
+  if (plano.limiteEmpresas != null) {
+    const { data: existentes, count } = await supabase
+      .from("empresas")
+      .select("cnpj", { count: "exact" })
+      .eq("escritorio_id", usuario.escritorio_id);
+
+    const cnpjsExistentes = new Set((existentes ?? []).map((e) => e.cnpj));
+    const novasDeVerdade = validas.filter((v) => !cnpjsExistentes.has(v.cnpj)).length;
+
+    if ((count ?? 0) + novasDeVerdade > plano.limiteEmpresas) {
+      return {
+        erro: `Essa importação passaria do limite do plano ${plano.nome} (${plano.limiteEmpresas} empresas). Fale com a gente para fazer upgrade.`,
+      };
+    }
   }
 
   const { data: inseridas, error } = await supabase

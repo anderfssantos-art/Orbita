@@ -1,8 +1,16 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
+import { usuarioAtual } from "@/lib/supabase/usuario-atual";
+import { planoDe } from "@/lib/planos";
 
 export default async function DashboardPage() {
   const supabase = await createClient();
+  const usuario = await usuarioAtual(supabase);
+
+  const { data: escritorio } = usuario
+    ? await supabase.from("escritorios").select("plano").eq("id", usuario.escritorio_id).maybeSingle()
+    : { data: null };
+  const plano = planoDe(escritorio?.plano ?? "trial");
 
   const [
     { count: totalEmpresas },
@@ -54,6 +62,28 @@ export default async function DashboardPage() {
           >
             Empresas
           </Link>
+        </div>
+      </div>
+
+      <div className="rounded-xl border border-zinc-200 bg-white p-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <span className="text-xs font-semibold uppercase tracking-wide text-zinc-500">Plano</span>
+            <p className="mt-0.5 text-sm font-semibold text-zinc-900">
+              {plano.nome}
+              {plano.precoMensal != null && (
+                <span className="ml-1 font-normal text-zinc-500">
+                  ·{" "}
+                  {plano.precoMensal === 0
+                    ? "grátis"
+                    : plano.precoMensal.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }) + "/mês"}
+                </span>
+              )}
+            </p>
+          </div>
+          <span className="text-sm text-zinc-600">
+            {totalEmpresas ?? 0} {plano.limiteEmpresas != null ? `de ${plano.limiteEmpresas}` : ""} empresas
+          </span>
         </div>
       </div>
 

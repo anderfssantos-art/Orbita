@@ -19,6 +19,8 @@ import { CertificadoUpload } from "./certificado-upload";
 import { BuscarXmlButton } from "./buscar-xml-button";
 import { UploadEmLote } from "./upload-em-lote";
 import { CaixaEntradaItem } from "./caixa-entrada-item";
+import { ResponsavelSelect } from "./responsavel-select";
+import { usuarioAtual } from "@/lib/supabase/usuario-atual";
 
 const setorLabel: Record<string, string> = {
   fiscal: "Fiscal",
@@ -39,6 +41,11 @@ export default async function EmpresaDetalhePage({
 }) {
   const { id } = await params;
   const supabase = await createClient();
+  const usuario = await usuarioAtual(supabase);
+
+  const { data: colaboradores } = usuario
+    ? await supabase.from("usuarios").select("id, nome").eq("escritorio_id", usuario.escritorio_id).order("nome")
+    : { data: [] };
 
   // As quatro consultas abaixo só dependem do id da rota, não umas das
   // outras — rodam em paralelo em vez de uma esperar a outra terminar.
@@ -103,7 +110,7 @@ export default async function EmpresaDetalhePage({
       ? await Promise.all([
           supabase
             .from("tarefas")
-            .select("id, nome, setor, critica, exige_revisao_4_olhos, status, concluida_por_id, aprovada_por_id")
+            .select("id, nome, setor, critica, exige_revisao_4_olhos, status, concluida_por_id, aprovada_por_id, responsavel_id")
             .eq("competencia_id", competenciaAtual.id)
             .order("nome"),
           supabase
@@ -351,6 +358,12 @@ export default async function EmpresaDetalhePage({
                       )}
                     </span>
                     <div className="flex items-center gap-2">
+                      <ResponsavelSelect
+                        tarefaId={t.id}
+                        empresaId={id}
+                        responsavelAtualId={t.responsavel_id}
+                        colaboradores={colaboradores ?? []}
+                      />
                       {t.status !== "concluida" && (
                         <form action={marcarTarefaConcluida}>
                           <input type="hidden" name="tarefaId" value={t.id} />

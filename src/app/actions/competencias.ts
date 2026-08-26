@@ -119,6 +119,24 @@ export async function abrirCompetencia(formData: FormData) {
   return { sucesso: true };
 }
 
+export async function atribuirResponsavel(formData: FormData) {
+  const tarefaId = String(formData.get("tarefaId") ?? "");
+  const empresaId = String(formData.get("empresaId") ?? "");
+  const responsavelId = String(formData.get("responsavelId") ?? "");
+
+  const supabase = await createClient();
+
+  const { error } = await supabase
+    .from("tarefas")
+    .update({ responsavel_id: responsavelId || null })
+    .eq("id", tarefaId);
+
+  if (error) return { erro: "Não foi possível atribuir: " + error.message };
+
+  revalidatePath(`/empresas/${empresaId}`);
+  return { sucesso: true };
+}
+
 export async function marcarTarefaConcluida(formData: FormData) {
   const tarefaId = String(formData.get("tarefaId") ?? "");
   const empresaId = String(formData.get("empresaId") ?? "");

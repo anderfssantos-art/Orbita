@@ -15,6 +15,19 @@ function linhaCsv(campos: string[]): string {
   return campos.map(campoCsv).join(";") + "\r\n";
 }
 
+// Sem isso, um CNPJ só com dígitos vira notação científica no Excel (é
+// interpretado como número). Com pontuação, o Excel trata como texto.
+function formatarCnpj(cnpj: string): string {
+  const digitos = cnpj.replace(/\D/g, "");
+  if (digitos.length !== 14) return cnpj;
+  return digitos.replace(/(\d{2})(\d{3})(\d{3})(\d{4})(\d{2})/, "$1.$2.$3/$4-$5");
+}
+
+function formatarDataHora(iso: string | null): string {
+  if (!iso) return "";
+  return new Date(iso).toLocaleString("pt-BR", { timeZone: "America/Sao_Paulo" });
+}
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -72,7 +85,7 @@ export async function GET(
   let csv = "﻿"; // BOM — Excel abre acentuação corretamente
   csv += linhaCsv(["Órbita — Resumo de competência"]);
   csv += linhaCsv(["Empresa", empresa.razao_social]);
-  csv += linhaCsv(["CNPJ", empresa.cnpj]);
+  csv += linhaCsv(["CNPJ", formatarCnpj(empresa.cnpj)]);
   csv += linhaCsv(["Competência", competencia.referencia]);
   csv += linhaCsv(["Status", competencia.status]);
   csv += "\r\n";
@@ -87,7 +100,7 @@ export async function GET(
   csv += linhaCsv(["DOCUMENTOS"]);
   csv += linhaCsv(["Tipo", "Status", "Recebido em"]);
   for (const d of documentos ?? []) {
-    csv += linhaCsv([d.tipo, d.status, d.recebido_em ?? ""]);
+    csv += linhaCsv([d.tipo, d.status, formatarDataHora(d.recebido_em)]);
   }
 
   const nomeArquivo = `orbita-${empresa.cnpj.replace(/\D/g, "")}-${competencia.referencia}.csv`;

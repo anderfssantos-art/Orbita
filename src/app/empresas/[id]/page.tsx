@@ -183,23 +183,31 @@ export default async function EmpresaDetalhePage({
                   {competenciaAtual.status}
                 </span>
               </p>
-              {competenciaAtual.status === "aberta" && (
-                <div className="flex items-center gap-2">
-                  <ActionButton
-                    action={rodarPreConferencia}
-                    fields={{ competenciaId: competenciaAtual.id, empresaId: id }}
-                    label="Rodar pré-conferência"
-                    pendingLabel="Conferindo..."
-                  />
-                  <ActionButton
-                    action={fecharCompetencia}
-                    fields={{ competenciaId: competenciaAtual.id, empresaId: id }}
-                    label="Fechar competência"
-                    pendingLabel="Fechando..."
-                    variant="primary"
-                  />
-                </div>
-              )}
+              <div className="flex items-center gap-2">
+                <a
+                  href={`/api/empresas/${id}/exportar?competenciaId=${competenciaAtual.id}`}
+                  className="rounded-lg border border-zinc-300 px-3 py-1.5 text-xs font-semibold text-zinc-700 hover:bg-zinc-50"
+                >
+                  Exportar CSV
+                </a>
+                {competenciaAtual.status === "aberta" && (
+                  <>
+                    <ActionButton
+                      action={rodarPreConferencia}
+                      fields={{ competenciaId: competenciaAtual.id, empresaId: id }}
+                      label="Rodar pré-conferência"
+                      pendingLabel="Conferindo..."
+                    />
+                    <ActionButton
+                      action={fecharCompetencia}
+                      fields={{ competenciaId: competenciaAtual.id, empresaId: id }}
+                      label="Fechar competência"
+                      pendingLabel="Fechando..."
+                      variant="primary"
+                    />
+                  </>
+                )}
+              </div>
             </div>
 
             {pendenciasAbertas.length > 0 && (

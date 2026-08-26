@@ -40,6 +40,8 @@ export async function rodarAuditoria(formData: FormData) {
     servicosContratados,
   });
 
+  const codigosQueDisparam = new Set(alertas.map((a) => a.codigo));
+
   if (alertas.length > 0) {
     await supabase.from("alertas_auditoria").upsert(
       alertas.map((a) => ({
@@ -54,6 +56,25 @@ export async function rodarAuditoria(formData: FormData) {
       })),
       { onConflict: "competencia_id,regra_codigo", ignoreDuplicates: false }
     );
+  }
+
+  // Regra que não dispara mais (o problema foi corrigido) fecha sozinha o
+  // alerta que ela tinha aberto antes — senão fica pra sempre na tela.
+  const { data: alertasAbertos } = await supabase
+    .from("alertas_auditoria")
+    .select("id, regra_codigo")
+    .eq("competencia_id", competenciaId)
+    .eq("status", "aberto");
+
+  const idsParaFechar = (alertasAbertos ?? [])
+    .filter((a) => !codigosQueDisparam.has(a.regra_codigo))
+    .map((a) => a.id);
+
+  if (idsParaFechar.length > 0) {
+    await supabase
+      .from("alertas_auditoria")
+      .update({ status: "resolvido", tratado_em: new Date().toISOString() })
+      .in("id", idsParaFechar);
   }
 
   revalidatePath(`/empresas/${empresaId}`);

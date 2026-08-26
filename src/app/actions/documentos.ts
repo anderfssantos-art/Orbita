@@ -4,6 +4,14 @@ import { createClient } from "@/lib/supabase/server";
 import { usuarioAtual } from "@/lib/supabase/usuario-atual";
 import { revalidatePath } from "next/cache";
 
+// O Supabase Storage rejeita chaves com acentos, espaços e outros símbolos —
+// nomes de arquivo reais (ex: "Comprovante de residência.pdf") quebravam o
+// upload. Mantém só letras/números ASCII, ponto e hífen.
+function sanitizarNomeArquivo(nome: string): string {
+  const semAcentos = nome.normalize("NFD").replace(/[̀-ͯ]/g, "");
+  return semAcentos.replace(/[^a-zA-Z0-9.-]/g, "-").replace(/-+/g, "-");
+}
+
 export async function enviarDocumento(formData: FormData) {
   const documentoId = String(formData.get("documentoId") ?? "");
   const competenciaId = String(formData.get("competenciaId") ?? "");
@@ -19,7 +27,7 @@ export async function enviarDocumento(formData: FormData) {
 
   if (!usuario) return { erro: "Usuário sem escritório vinculado." };
 
-  const caminho = `${usuario.escritorio_id}/${competenciaId}/${documentoId}-${file.name}`;
+  const caminho = `${usuario.escritorio_id}/${competenciaId}/${documentoId}-${sanitizarNomeArquivo(file.name)}`;
 
   const { error: uploadError } = await supabase.storage
     .from("documentos")

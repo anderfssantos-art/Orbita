@@ -15,6 +15,7 @@ import { resolverPendencia } from "@/app/actions/pendencias";
 import { DocumentoUpload } from "./documento-upload";
 import { GerarConviteButton } from "./gerar-convite-button";
 import { CertificadoUpload } from "./certificado-upload";
+import { BuscarXmlButton } from "./buscar-xml-button";
 
 const setorLabel: Record<string, string> = {
   fiscal: "Fiscal",
@@ -358,6 +359,9 @@ export default async function EmpresaDetalhePage({
           Necessário para a busca automática de documentos fiscais. O arquivo e a senha ficam guardados num cofre criptografado — nunca em texto simples.
         </p>
         <CertificadoUpload empresaId={id} certificadoAtual={certificados?.[0] ?? null} />
+        {certificados?.[0] && (
+          <BuscarXmlButton empresaId={id} certificadoId={certificados[0].id} />
+        )}
       </section>
     </main>
   );

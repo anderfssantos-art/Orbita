@@ -16,16 +16,24 @@ export async function rodarAuditoria(formData: FormData) {
   const usuario = await usuarioAtual(supabase);
   if (!usuario) return { erro: "Usuário sem escritório vinculado." };
 
-  const [{ data: empresa }, { data: competencia }, { data: tarefas }, { data: contratados }] =
-    await Promise.all([
-      supabase.from("empresas").select("regime_tributario").eq("id", empresaId).maybeSingle(),
-      supabase.from("competencias").select("referencia, status").eq("id", competenciaId).maybeSingle(),
-      supabase
-        .from("tarefas")
-        .select("nome, critica, responsavel_id")
-        .eq("competencia_id", competenciaId),
-      supabase.from("empresa_servicos").select("servicos(nome)").eq("empresa_id", empresaId),
-    ]);
+  const [
+    { data: empresa },
+    { data: competencia },
+    { data: tarefas },
+    { data: contratados },
+    { data: certificados },
+    { data: documentos },
+  ] = await Promise.all([
+    supabase.from("empresas").select("regime_tributario, honorario_mensal").eq("id", empresaId).maybeSingle(),
+    supabase.from("competencias").select("referencia, status").eq("id", competenciaId).maybeSingle(),
+    supabase
+      .from("tarefas")
+      .select("nome, critica, responsavel_id")
+      .eq("competencia_id", competenciaId),
+    supabase.from("empresa_servicos").select("servicos(nome)").eq("empresa_id", empresaId),
+    supabase.from("certificados_digitais").select("validade").eq("empresa_id", empresaId),
+    supabase.from("documentos").select("tipo, status, arquivo_url").eq("competencia_id", competenciaId),
+  ]);
 
   if (!empresa || !competencia) return { erro: "Competência ou empresa não encontrada." };
 
@@ -38,6 +46,8 @@ export async function rodarAuditoria(formData: FormData) {
     competencia,
     tarefas: tarefas ?? [],
     servicosContratados,
+    certificados: certificados ?? [],
+    documentos: documentos ?? [],
   });
 
   const codigosQueDisparam = new Set(alertas.map((a) => a.codigo));

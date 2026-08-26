@@ -95,6 +95,7 @@ export type ResultadoBuscaXml = {
   sucesso: boolean;
   respostaBruta: string;
   erro?: string;
+  xmlEnviado?: string; // temporário, só para depurar o cStat 215 com dado real
 };
 
 /**
@@ -157,6 +158,7 @@ export async function buscarDocumentosFiscais(
             sucesso: (res.statusCode ?? 500) < 300,
             respostaBruta: corpo,
             erro: (res.statusCode ?? 500) >= 300 ? `HTTP ${res.statusCode}` : undefined,
+            xmlEnviado: xmlAssinado,
           });
         });
       }

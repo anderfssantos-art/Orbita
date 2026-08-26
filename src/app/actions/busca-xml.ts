@@ -44,5 +44,6 @@ export async function buscarXmlDaEmpresa(formData: FormData) {
     sucesso: resultado.sucesso,
     erro: resultado.erro,
     respostaBruta: resultado.respostaBruta.slice(0, 4000),
+    xmlEnviado: resultado.xmlEnviado,
   };
 }

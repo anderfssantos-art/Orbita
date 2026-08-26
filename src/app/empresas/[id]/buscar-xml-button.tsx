@@ -15,6 +15,7 @@ export function BuscarXmlButton({
     sucesso?: boolean;
     erro?: string;
     respostaBruta?: string;
+    xmlEnviado?: string;
   } | null>(null);
   const [pending, startTransition] = useTransition();
 
@@ -69,6 +70,14 @@ export function BuscarXmlButton({
           ) : (
             <p className="mt-1 text-zinc-500">(sem corpo de resposta)</p>
           )}
+          {resultado.xmlEnviado ? (
+            <details className="mt-1" open>
+              <summary className="cursor-pointer text-zinc-600">Ver XML assinado enviado</summary>
+              <pre className="mt-1 max-h-48 overflow-auto whitespace-pre-wrap rounded bg-white p-2 text-[10px] text-zinc-700">
+                {resultado.xmlEnviado}
+              </pre>
+            </details>
+          ) : null}
         </div>
       )}
     </div>

@@ -1,16 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
 
-// Escapa um campo para CSV: envolve em aspas se tiver vírgula, aspas ou quebra de linha.
+// O Excel em português usa ponto e vírgula como separador de colunas — a
+// vírgula já é o separador decimal (R$ 10,50) — então um CSV com vírgula
+// cai tudo numa coluna só ao abrir. Ponto e vírgula é o padrão certo aqui.
 function campoCsv(valor: string): string {
-  if (/[",\n]/.test(valor)) {
+  if (/[";\n]/.test(valor)) {
     return `"${valor.replace(/"/g, '""')}"`;
   }
   return valor;
 }
 
 function linhaCsv(campos: string[]): string {
-  return campos.map(campoCsv).join(",") + "\r\n";
+  return campos.map(campoCsv).join(";") + "\r\n";
 }
 
 export async function GET(

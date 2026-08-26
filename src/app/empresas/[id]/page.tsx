@@ -14,6 +14,7 @@ import {
 import { resolverPendencia } from "@/app/actions/pendencias";
 import { DocumentoUpload } from "./documento-upload";
 import { GerarConviteButton } from "./gerar-convite-button";
+import { CertificadoUpload } from "./certificado-upload";
 
 const setorLabel: Record<string, string> = {
   fiscal: "Fiscal",
@@ -42,6 +43,7 @@ export default async function EmpresaDetalhePage({
     { data: todosServicos },
     { data: contratados },
     { data: competencias },
+    { data: certificados },
   ] = await Promise.all([
     supabase
       .from("empresas")
@@ -58,6 +60,12 @@ export default async function EmpresaDetalhePage({
       .select("id, referencia, status")
       .eq("empresa_id", id)
       .order("referencia", { ascending: false }),
+    supabase
+      .from("certificados_digitais")
+      .select("id, nome_arquivo, validade, criado_em")
+      .eq("empresa_id", id)
+      .order("criado_em", { ascending: false })
+      .limit(1),
   ]);
 
   if (!empresa) notFound();
@@ -342,6 +350,14 @@ export default async function EmpresaDetalhePage({
           Gere um convite para o responsável desta empresa acompanhar competências, pendências e documentos sem precisar falar com o escritório.
         </p>
         <GerarConviteButton empresaId={id} />
+      </section>
+
+      <section className="flex flex-col gap-3 rounded-xl border border-zinc-200 bg-white p-4">
+        <h2 className="text-sm font-semibold text-zinc-900">Certificado digital (A1)</h2>
+        <p className="text-sm text-zinc-600">
+          Necessário para a busca automática de documentos fiscais. O arquivo e a senha ficam guardados num cofre criptografado — nunca em texto simples.
+        </p>
+        <CertificadoUpload empresaId={id} certificadoAtual={certificados?.[0] ?? null} />
       </section>
     </main>
   );

@@ -70,13 +70,23 @@ export async function entrar(formData: FormData) {
   }
 
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+  const { data: signInData, error } = await supabase.auth.signInWithPassword({
     email,
     password: senha,
   });
 
   if (error) {
     return { erro: "E-mail ou senha inválidos." };
+  }
+
+  // Mesmo motivo do cadastro: sem isto, as chamadas .rpc()/.from() logo
+  // abaixo não enxergam a sessão que acabou de autenticar nesta mesma
+  // requisição — auth.uid() ficaria nulo e a RLS bloquearia tudo.
+  if (signInData.session) {
+    await supabase.auth.setSession({
+      access_token: signInData.session.access_token,
+      refresh_token: signInData.session.refresh_token,
+    });
   }
 
   const usuario = await usuarioAtual(supabase);

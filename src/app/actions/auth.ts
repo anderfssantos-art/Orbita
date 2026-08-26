@@ -16,9 +16,13 @@ export async function cadastrarEscritorio(formData: FormData) {
 
   const supabase = await createClient();
 
+  // nomeEscritorio/nomeUsuario viajam nos metadados da conta — são lidos de
+  // novo no primeiro login (ver entrar()) quando o e-mail precisa de
+  // confirmação e não existe sessão ativa aqui para chamar o RPC.
   const { data: authData, error: authError } = await supabase.auth.signUp({
     email,
     password: senha,
+    options: { data: { nome_escritorio: nomeEscritorio, nome_usuario: nomeUsuario } },
   });
 
   if (authError || !authData.user) {
@@ -78,10 +82,27 @@ export async function entrar(formData: FormData) {
   const usuario = await usuarioAtual(supabase);
   if (usuario) redirect("/empresas");
 
-  // Cliente do portal: se o convite não pôde ser aplicado no cadastro
-  // (e-mail ainda não confirmado naquele momento), completa agora, no
-  // primeiro login — é quando a sessão passa a existir de verdade.
+  // Se o cadastro (de escritório ou de cliente) não pôde terminar de se
+  // montar por falta de sessão ativa naquele momento (e-mail ainda não
+  // confirmado), completa agora, no primeiro login — os dados necessários
+  // ficaram guardados nos metadados da conta.
   const { data: { user } } = await supabase.auth.getUser();
+  const nomeEscritorio = user?.user_metadata?.nome_escritorio as string | undefined;
+  const nomeUsuario = user?.user_metadata?.nome_usuario as string | undefined;
+
+  if (nomeEscritorio && nomeUsuario) {
+    const { error: rpcError } = await supabase.rpc("criar_escritorio_e_usuario", {
+      p_nome_escritorio: nomeEscritorio,
+      p_nome_usuario: nomeUsuario,
+    });
+    if (rpcError) {
+      return {
+        erro: "Não foi possível montar o escritório: " + rpcError.message,
+      };
+    }
+    redirect("/empresas");
+  }
+
   const { data: acesso } = await supabase
     .from("acessos_cliente")
     .select("id")
